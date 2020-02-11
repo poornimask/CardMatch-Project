@@ -1,141 +1,167 @@
-var TracksterTests = {};
+var MatchGameTests = {};
 
-TracksterTests.runAllTracksterTests = function() {
+MatchGameTests.runTests = function() {
   var errors = [];
-  TracksterTests.testSearchTracksByTitle(errors);
-  TracksterTests.testRenderTracks(errors);
-  TracksterTests.logErrors(errors);
+  MatchGameTests.testGenerateCardValues(errors);
+  MatchGameTests.testRenderCards(errors);
+  MatchGameTests.testFlipCard(errors);
+  MatchGameTests.logErrors(errors);
 };
 
-TracksterTests.testRenderTracks = function(errors) {
-  var hasRenderTracks = Trackster.renderTracks && typeof Trackster.renderTracks === 'function';
-  if (!hasRenderTracks) {
-    errors.push("renderTracks: Trackster object should have a function called renderTracks.");
-    // If renderTracks method is missing, remaining tests will not work.
+MatchGameTests.testGenerateCardValues = function(errors) {
+  // Test that generateCardValues function exists.
+  var hasGenerateCardValues = MatchGame.generateCardValues && typeof MatchGame.generateCardValues === 'function';
+  if (!hasGenerateCardValues) {
+    errors.push("generateCardValues: MatchGame object should have a function called generateCardValues.");
+    // If generateCardValues function is missing, remaining tests will not work.
     return;
   }
 
-  var userHtml = $('body').html();
-
-  var tinyDancerTracks = [{
-    url: 'https://www.last.fm/music/Elton+John/_/Tiny+Dancer',
-    name: 'Tiny Dancer',
-    artist: 'Elton John',
-    image: [
-      {},
-      {
-        '#text': 'https://lastfm-img2.akamaized.net/i/u/64s/e4b1e25d34694b5d89541185ef45cfa3.png'
-      },
-      {},
-      {}
-    ],
-    listeners: '581520'
-  }];
-  Trackster.renderTracks(tinyDancerTracks);
-  if (!$("a[href='https://www.last.fm/music/Elton+John/_/Tiny+Dancer']").length) {
-    errors.push("renderTracks: renderTracks should add an <a> tag link to each track's preview url.");
-  }
-  if (!$("body:contains('Tiny Dancer')").length) {
-    errors.push("renderTracks: renderTracks should add each track's name to the track list.");
-  }
-  if (!$("body:contains('Elton John')").length) {
-    errors.push("renderTracks: renderTracks should add each track's artist's name to the track list.");
-  }
-  if (!$("img[src='https://lastfm-img2.akamaized.net/i/u/64s/e4b1e25d34694b5d89541185ef45cfa3.png']").length) {
-    errors.push("renderTracks: renderTracks should add each track's album art to the track list.");
-  }
-  if (!$("body:contains('581520')").length) {
-    errors.push("renderTracks: renderTracks should add each track's total number of listeners to the track list.");
-  }
-
-  Trackster.renderTracks([]);
-  if ($("body:contains('Tiny Dancer')").length) {
-    errors.push("renderTracks: renderTracks should empty the HTML of the track list before rendering a new list of tracks.");
-  }
-
-  $('body').html(userHtml);
-};
-
-TracksterTests.testSearchTracksByTitle = function(errors) {
-  var hasSearchTracksByTitle = Trackster.searchTracksByTitle && typeof Trackster.searchTracksByTitle === 'function';
-  if (!hasSearchTracksByTitle) {
-    errors.push("searchTracksByTitle: Trackster object should have a function called searchTracksByTitle.");
-    // If searchTracksByTitle method is missing, remaining tests will not work.
+  var values = MatchGame.generateCardValues();
+  if (!values || values.constructor !== Array) {
+    errors.push("generateCardValues: should return an array.");
+    // If generateCardValues does not return an array, remaining tests will not work.
     return;
   }
 
-  var mockAjax = TracksterTests.mock($, 'ajax');
+  if (values.length !== 16) {
+    errors.push("generateCardValues: should return an array containing 16 values.");
+  }
 
-  Trackster.searchTracksByTitle('tiny');
+  // Get number of each value.
+  var valueCounts = {};
+  values.forEach(function(value) {
+    var valueCount = valueCounts[value];
+    valueCounts[value] = valueCount ? valueCount + 1 : 1;
+  });
 
-  if (!mockAjax.getCalls().length) {
-    errors.push("searchTracksByTitle: searchTracksByTitle should call $.ajax.");
+  for (var i = 1; i <= 8; i++) {
+    if (valueCounts[i] !== 2) {
+      errors.push("generateCardValues: should return an array containing two copies of each card, values 1 through 8.");
+    }
+  }
+};
+
+MatchGameTests.testRenderCards = function(errors) {
+  var hasRenderCards = MatchGame.renderCards && typeof MatchGame.renderCards === 'function';
+  if (!hasRenderCards) {
+    errors.push("renderCards: MatchGame object should have a function called renderCards.");
+    // If renderCards function is missing, remaining tests will not work.
+    return;
+  }
+
+  var $game = $('<div><h1>Old Game</h1></div>');
+  var cardValues = [1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8];
+
+  MatchGame.renderCards(cardValues, $game);
+
+  if ($game.find('h1').length) {
+    errors.push("renderCards: Game should clear old HTML.");
+  }
+
+  var $cards = $game.find('.card');
+  if ($cards.length !== 16) {
+    errors.push("renderCards: Game should have sixteen .card objects.");
+  }
+
+  $cards.each(function(cardIndex, card) {
+    var $card = $(card);
+    if (!$card.data('value')) {
+      errors.push("renderCards: All cards should have a data attribute called 'value'.");
+    }
+    if ($card.data('value') !== cardValues[cardIndex]) {
+      errors.push("renderCards: Card data 'value' should equal corresponding value in cardValues.");
+    }
+
+    if (!$card.data('color')) {
+      errors.push("renderCards: All cards should have a data attribute called 'color'.");
+    }
+  });
+};
+
+MatchGameTests.testFlipCard = function(errors) {
+  var hasFlipCard = MatchGame.flipCard && typeof MatchGame.flipCard === 'function';
+  if (!hasFlipCard) {
+    errors.push("flipCard: MatchGame object should have a function called flipCard.");
+    // If flipCard function is missing, remaining tests will not work.
+    return;
+  }
+
+  var $game = $('<div>');
+  var cardValues = [1, 1, 2];
+  MatchGame.renderCards(cardValues, $game);
+  var $cards = $game.find('.card');
+  var $card0 = $($cards.get(0));
+  var $card1 = $($cards.get(1));
+  var $card2 = $($cards.get(2));
+  var faceDownColor = $card0.css('background-color');
+
+  if (!$cards.length) {
+    errors.push("flipCard: Game should have '.card' objects to flip.");
+    return;
+  }
+
+  MatchGame.flipCard($card0, $game);
+  if ($card0.text() !== '1') {
+    errors.push("flipCard: Flipping a card should set its data 'value' as its visible HTML text.");
+  }
+  if ($card0.css('background-color') === faceDownColor) {
+    errors.push("flipCard: Flipping a card should change its background color.");
+  }
+  MatchGame.flipCard($card0, $game);
+  if ($card0.text() !== '1' || $card0.css('background-color') === faceDownColor) {
+    errors.push("flipCard: Flipping a flipped card should keep it flipped up.");
+  }
+
+  MatchGame.renderCards(cardValues, $game);
+  $cards = $game.find('.card');
+  $card0 = $($cards.get(0));
+  $card1 = $($cards.get(1));
+  $card2 = $($cards.get(2));
+
+  var mockSetTimeout = MatchGameTests.mock(window, 'setTimeout');
+  MatchGame.flipCard($card0, $game);
+  MatchGame.flipCard($card2, $game);
+  if (!mockSetTimeout.getCalls().length) {
+    errors.push("flipCard: Flipping two different cards should call .setTimeout() before flipping back down.");
   } else {
-    var url, successFn;
-    var call = mockAjax.getCalls()[0];
-    if (typeof call[0] === 'string') {
-      url = call[0];
-      successFn = call[1] && call[1].success;
+    if (!mockSetTimeout.getCalls()[0][0] || typeof mockSetTimeout.getCalls()[0][0] !== 'function') {
+      errors.push("flipCard: .setTimeout() should be called with a function as its first argument.");
     } else {
-      url = call[0] && call[0].url;
-      successFn = call[0] && call[0].success;
-    }
-
-    if (!url) {
-      errors.push('searchTracksByTitle: $.ajax must specify a "url" parameter.');
-    } else {
-      var match = url.match(/https:\/\/ws\.audioscrobbler\.com\/2\.0\/\?method=track\.search&track=.*&api_key=([a-z]|\d){32}&format=json/);
-      if (!match) {
-        errors.push("searchTracksByTitle: $.ajax url should hit the ws.audioscrobbler.com/2.0/method=track.search endpoint.");
-      } else {
-        params = match[0].split('&');
-        if (params.length < 2) {
-          errors.push('searchTracksByTitle: $.ajax url should have parameters for "track", "api_key", and "format" separated by an "&".');
-        } else {
-          if (!params.includes('track=tiny')) {
-            errors.push('searchTracksByTitle: $.ajax url should have a parameter called "track" with a value of the supplied title parameter.');
-          } else {
-            if (!params[2].match(/api_key=([a-z]|\d){32}/)) {
-              errors.push('searchTracksByTitle: $.ajax url should have a parameter called "api_key" set to a valid API key.');
-            } else {
-              if (!params.includes('format=json')) {
-                errors.push('searchTracksByTitle: $.ajax url should have a parameter called "format" with a value of "json".');
-              }
-            }
-          }
-        }
+      mockSetTimeout.getCalls()[0][0]();
+      if ($card0.text() || $card2.text()) {
+        errors.push("flipCard: Flipping two different cards should clear their text after .setTimeout().");
+      }
+      if ($card0.css('background-color') !==  'rgb(32, 64, 86)' || $card2.css('background-color') !== 'rgb(32, 64, 86)') {
+        errors.push("flipCard: Flipping two different cards should set their background color back to rgb(32, 64, 86) after .setTimeout().");
       }
     }
-
-    if (!successFn) {
-      errors.push('searchTracksByTitle: $.ajax must specify a "success" parameter.');
-    } else {
-      var mockRender = TracksterTests.mock(Trackster, 'renderTracks');
-      var mockItems = 'Tiny Dancer';
-      var response = {
-        results: {
-          trackmatches: {
-            track: [
-              {
-                name: mockItems
-              }
-            ]
-          }
-        }
-      };
-      successFn(response);
-      if (!mockRender.getCalls().length) {
-        errors.push('searchTracksByTitle: "success" callback should call Trackster.renderTracks().');
-      } else if (mockRender.getCalls()[0][0][0].name !== mockItems) {
-        errors.push("searchTracksByTitle: Trackster.renderTracks() should be called with data located in the returned response's `data`.");
-      }
-      mockRender.restore();
+    if (!mockSetTimeout.getCalls()[0][1] || typeof mockSetTimeout.getCalls()[0][1] !== 'number') {
+      errors.push("flipCard: .setTimeout() should be called with a number as its second argument.");
     }
   }
-  mockAjax.restore();
+  mockSetTimeout.restore();
+
+  MatchGame.renderCards(cardValues, $game);
+  $cards = $game.find('.card');
+  $card0 = $($cards.get(0));
+  $card1 = $($cards.get(1));
+  $card2 = $($cards.get(2));
+  MatchGame.flipCard($card0, $game);
+  MatchGame.flipCard($card1, $game);
+
+  if (!$card0.text() || !$card1.text()) {
+    errors.push("flipCard: Flipping two matching cards should keep their values.");
+  }
+  if ($card0.css('background-color') !==  'rgb(153, 153, 153)' || $card1.css('background-color') !== 'rgb(153, 153, 153)') {
+    errors.push("flipCard: Flipping two matching cards should set their background color to rgb(153, 153, 153).");
+  }
+  if ($card0.css('color') ===  'rgb(32, 64, 86)' || $card1.css('color') === 'rgb(32, 64, 86)') {
+    errors.push("flipCard: Flipping two matching cards should set their color to rgb(32, 64, 86).");
+  }
 };
 
-TracksterTests.mock = function(object, functionName) {
+MatchGameTests.mock = function(object, functionName) {
   var oldFn = object[functionName];
   var calls = [];
   object[functionName] = function() {
@@ -151,9 +177,9 @@ TracksterTests.mock = function(object, functionName) {
   };
 };
 
-TracksterTests.logErrors = function(errors) {
+MatchGameTests.logErrors = function(errors) {
   if (errors.length === 0) {
-    console.log('%cAll TracksterTests passed!', 'color: #30AD35');
+    console.log('%cAll tests passed!', 'color: #30AD35');
   } else {
     errors = new Set(errors);
     var errorMessage = ' errors found:';
